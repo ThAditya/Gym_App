@@ -182,7 +182,26 @@ export interface Notification {
   userId: string;
   title: string;
   message: string;
-  type: 'info' | 'warning' | 'success' | 'error';
+  type: 'info' | 'warning' | 'success' | 'error' | 'membership_renewal';
   isRead: boolean;
+  createdAt: string;
+  data?: {
+    memberId?: string;
+    membershipEndDate?: string;
+    daysUntilExpiry?: number;
+    membershipFee?: number;
+  };
+}
+
+export interface MembershipRenewalNotification {
+  id: string;
+  memberId: string;
+  memberName: string;
+  memberEmail: string;
+  membershipEndDate: string;
+  daysUntilExpiry: number;
+  membershipFee: number;
+  notificationSent: boolean;
+  lastNotificationDate?: string;
   createdAt: string;
 } 

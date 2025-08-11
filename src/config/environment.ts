@@ -1,4 +1,4 @@
-// Environment configuration for the Gym Management Application
+// Environment configuration for TheGymEye - Gym Management Application
 // This file helps manage different configurations for development and production
 
 export const ENV = {
@@ -11,12 +11,15 @@ export const ENV = {
     PROJECT_ID: "gymapp-77199",
     STORAGE_BUCKET: "gymapp-77199.firebasestorage.app",
     MESSAGING_SENDER_ID: "491835332207",
-    APP_ID: "1:491835332207:web:618019b0c947be42429f9a"
+    APP_ID: "1:491835332207:web:618019b0c947be42429f9a",
+    // Optional: Add these if you want to use Analytics or Realtime Database
+    MEASUREMENT_ID: "", // Optional: for Google Analytics
+    DATABASE_URL: "", // Optional: for Realtime Database
   },
   
   // App Configuration
   APP: {
-    NAME: "GymApp",
+    NAME: "TheGymEye",
     VERSION: "1.0.0",
     DESCRIPTION: "Your Fitness Journey Starts Here"
   },
@@ -25,7 +28,7 @@ export const ENV = {
   FEATURES: {
     ENABLE_ANALYTICS: false,
     ENABLE_CRASH_REPORTING: false,
-    ENABLE_PUSH_NOTIFICATIONS: false,
+    ENABLE_PUSH_NOTIFICATIONS: true,
     ENABLE_OFFLINE_SUPPORT: true
   },
   
@@ -33,19 +36,20 @@ export const ENV = {
   API: {
     TIMEOUT: 30000, // 30 seconds
     RETRY_ATTEMPTS: 3
+  },
+
+  // Notification Configuration
+  NOTIFICATIONS: {
+    ENABLE_MEMBERSHIP_RENEWAL: true,
+    RENEWAL_REMINDER_DAYS: 30, // Send reminder 30 days before expiry
+    URGENT_REMINDER_DAYS: 7,   // Send urgent reminder 7 days before expiry
+    DAILY_CHECK_TIME: "09:00", // Daily check at 9 AM
   }
 };
 
 // Helper function to get Firebase config
 export const getFirebaseConfig = () => {
-  return {
-    apiKey: ENV.FIREBASE.API_KEY,
-    authDomain: ENV.FIREBASE.AUTH_DOMAIN,
-    projectId: ENV.FIREBASE.PROJECT_ID,
-    storageBucket: ENV.FIREBASE.STORAGE_BUCKET,
-    messagingSenderId: ENV.FIREBASE.MESSAGING_SENDER_ID,
-    appId: ENV.FIREBASE.APP_ID
-  };
+  return ENV.FIREBASE;
 };
 
 // Environment detection

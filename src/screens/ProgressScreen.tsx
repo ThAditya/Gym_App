@@ -6,17 +6,20 @@ import {
   ScrollView,
   TouchableOpacity,
   FlatList,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../context/AuthContext';
 import firebaseService from '../services/firebaseService';
 import { ProgressLog } from '../types';
+import RefreshHeader from '../components/RefreshHeader';
 
 const ProgressScreen = ({ navigation }: any) => {
   const { user } = useAuth();
   const [progressLogs, setProgressLogs] = useState<ProgressLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadProgressLogs();
@@ -26,13 +29,19 @@ const ProgressScreen = ({ navigation }: any) => {
     if (!user?.memberId) return;
 
     try {
-      const logs = await firebaseService.getProgressLogsByMember(user.memberId);
-      setProgressLogs(logs);
+      const progressData = await firebaseService.getProgressLogsByMember(user.memberId);
+      setProgressLogs(progressData);
     } catch (error) {
       console.error('Error loading progress logs:', error);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadProgressLogs();
+    setRefreshing(false);
   };
 
   const formatDate = (date: Date | string) => {
@@ -48,59 +57,64 @@ const ProgressScreen = ({ navigation }: any) => {
         </View>
         <View style={styles.progressInfo}>
           <Text style={styles.progressDate}>{formatDate(item.date)}</Text>
-          <Text style={styles.progressWeight}>{item.weight} kg</Text>
-        </View>
-        <View style={styles.progressStats}>
-          {item.bodyFat && (
-            <Text style={styles.statText}>Body Fat: {item.bodyFat}%</Text>
-          )}
-          {item.muscleMass && (
-            <Text style={styles.statText}>Muscle: {item.muscleMass}kg</Text>
-          )}
+          <Text style={styles.progressTitle}>Progress Update</Text>
         </View>
       </View>
 
-      {/* Body Measurements */}
-      <View style={styles.measurementsContainer}>
-        <Text style={styles.measurementsTitle}>Body Measurements</Text>
-        <View style={styles.measurementsGrid}>
-          <View style={styles.measurementItem}>
-            <Text style={styles.measurementLabel}>Chest</Text>
-            <Text style={styles.measurementValue}>{item.measurements.chest}cm</Text>
-          </View>
-          <View style={styles.measurementItem}>
-            <Text style={styles.measurementLabel}>Waist</Text>
-            <Text style={styles.measurementValue}>{item.measurements.waist}cm</Text>
-          </View>
-          <View style={styles.measurementItem}>
-            <Text style={styles.measurementLabel}>Hips</Text>
-            <Text style={styles.measurementValue}>{item.measurements.hips}cm</Text>
-          </View>
-          <View style={styles.measurementItem}>
-            <Text style={styles.measurementLabel}>Biceps</Text>
-            <Text style={styles.measurementValue}>{item.measurements.biceps}cm</Text>
-          </View>
-          <View style={styles.measurementItem}>
-            <Text style={styles.measurementLabel}>Thighs</Text>
-            <Text style={styles.measurementValue}>{item.measurements.thighs}cm</Text>
-          </View>
-          <View style={styles.measurementItem}>
-            <Text style={styles.measurementLabel}>Calves</Text>
-            <Text style={styles.measurementValue}>{item.measurements.calves}cm</Text>
-          </View>
+      <View style={styles.progressStats}>
+        <View style={styles.statItem}>
+          <Text style={styles.statLabel}>Weight</Text>
+          <Text style={styles.statValue}>{item.weight} kg</Text>
         </View>
+        {item.bodyFat && (
+          <View style={styles.statItem}>
+            <Text style={styles.statLabel}>Body Fat</Text>
+            <Text style={styles.statValue}>{item.bodyFat}%</Text>
+          </View>
+        )}
+        {item.muscleMass && (
+          <View style={styles.statItem}>
+            <Text style={styles.statLabel}>Muscle Mass</Text>
+            <Text style={styles.statValue}>{item.muscleMass} kg</Text>
+          </View>
+        )}
       </View>
 
-      {item.notes && (
-        <View style={styles.notesContainer}>
-          <Text style={styles.notesText}>{item.notes}</Text>
+      {item.measurements && (
+        <View style={styles.measurementsSection}>
+          <Text style={styles.measurementsTitle}>Body Measurements (cm)</Text>
+          <View style={styles.measurementsGrid}>
+            <View style={styles.measurementItem}>
+              <Text style={styles.measurementLabel}>Chest</Text>
+              <Text style={styles.measurementValue}>{item.measurements.chest}</Text>
+            </View>
+            <View style={styles.measurementItem}>
+              <Text style={styles.measurementLabel}>Waist</Text>
+              <Text style={styles.measurementValue}>{item.measurements.waist}</Text>
+            </View>
+            <View style={styles.measurementItem}>
+              <Text style={styles.measurementLabel}>Hips</Text>
+              <Text style={styles.measurementValue}>{item.measurements.hips}</Text>
+            </View>
+            <View style={styles.measurementItem}>
+              <Text style={styles.measurementLabel}>Biceps</Text>
+              <Text style={styles.measurementValue}>{item.measurements.biceps}</Text>
+            </View>
+            <View style={styles.measurementItem}>
+              <Text style={styles.measurementLabel}>Thighs</Text>
+              <Text style={styles.measurementValue}>{item.measurements.thighs}</Text>
+            </View>
+            <View style={styles.measurementItem}>
+              <Text style={styles.measurementLabel}>Calves</Text>
+              <Text style={styles.measurementValue}>{item.measurements.calves}</Text>
+            </View>
+          </View>
         </View>
       )}
 
-      {item.photos && item.photos.length > 0 && (
-        <View style={styles.photosContainer}>
-          <Text style={styles.photosTitle}>Progress Photos</Text>
-          <Text style={styles.photosCount}>{item.photos.length} photo(s)</Text>
+      {item.notes && (
+        <View style={styles.notesSection}>
+          <Text style={styles.notesText}>{item.notes}</Text>
         </View>
       )}
     </View>
@@ -109,51 +123,54 @@ const ProgressScreen = ({ navigation }: any) => {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <Text>Loading progress...</Text>
+        <Text>Loading progress logs...</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <LinearGradient
-        colors={['#667eea', '#764ba2']}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>Progress Tracking</Text>
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => navigation.navigate('AddProgress')}
-          >
-            <Ionicons name="add" size={24} color="white" />
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
+      <RefreshHeader
+        title="Progress"
+        subtitle={`${progressLogs.length} progress logs`}
+        onRefresh={onRefresh}
+        gradientColors={['#4CAF50', '#388E3C']}
+      />
 
-      {/* Progress List */}
-      {progressLogs.length > 0 ? (
-        <FlatList
-          data={progressLogs}
-          renderItem={renderProgressItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
-        />
-      ) : (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="trending-up-outline" size={80} color="#ccc" />
-          <Text style={styles.emptyTitle}>No Progress Logs Yet</Text>
-          <Text style={styles.emptySubtitle}>Start tracking your fitness journey by logging your first progress update!</Text>
-          <TouchableOpacity
-            style={styles.emptyAddButton}
-            onPress={() => navigation.navigate('AddProgress')}
-          >
-            <Text style={styles.emptyAddButtonText}>Log Your First Progress</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      <FlatList
+        data={progressLogs}
+        renderItem={renderProgressItem}
+        keyExtractor={(item) => item.id}
+        style={styles.progressList}
+        contentContainerStyle={styles.progressListContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Ionicons name="trending-up-outline" size={80} color="#ccc" />
+            <Text style={styles.emptyTitle}>No Progress Logs Yet</Text>
+            <Text style={styles.emptySubtitle}>
+              Start tracking your fitness progress by adding your first log!
+            </Text>
+            <TouchableOpacity
+              style={styles.addProgressButton}
+              onPress={() => navigation.navigate('AddProgress')}
+            >
+              <Ionicons name="add" size={24} color="white" />
+              <Text style={styles.addProgressButtonText}>Add Progress Log</Text>
+            </TouchableOpacity>
+          </View>
+        }
+      />
+
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => navigation.navigate('AddProgress')}
+      >
+        <Ionicons name="add" size={30} color="white" />
+      </TouchableOpacity>
     </View>
   );
 };
@@ -227,6 +244,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#333',
   },
+  progressTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 5,
+  },
   progressWeight: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -234,14 +257,30 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   progressStats: {
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 15,
   },
-  statText: {
+  statItem: {
+    alignItems: 'center',
+  },
+  statLabel: {
     fontSize: 12,
     color: '#666',
-    marginBottom: 2,
+    marginBottom: 5,
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
   },
   measurementsContainer: {
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    paddingTop: 15,
+    marginBottom: 15,
+  },
+  measurementsSection: {
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
     paddingTop: 15,
@@ -284,6 +323,12 @@ const styles = StyleSheet.create({
     paddingTop: 15,
     marginBottom: 15,
   },
+  notesSection: {
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    paddingTop: 15,
+    marginBottom: 15,
+  },
   notesText: {
     fontSize: 14,
     color: '#666',
@@ -309,6 +354,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 40,
+    paddingVertical: 50,
   },
   emptyTitle: {
     fontSize: 24,
@@ -329,11 +375,53 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
     paddingVertical: 15,
     borderRadius: 25,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   emptyAddButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+    marginLeft: 10,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#4CAF50',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  progressList: {
+    flex: 1,
+  },
+  progressListContent: {
+    padding: 20,
+  },
+  addProgressButton: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 30,
+    paddingVertical: 15,
+    borderRadius: 25,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 20,
+  },
+  addProgressButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 10,
   },
 });
 

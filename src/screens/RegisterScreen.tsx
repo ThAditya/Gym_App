@@ -62,7 +62,7 @@ const RegisterScreen = ({ navigation }: any) => {
         phone: formData.phone,
         address: formData.address,
         membershipStatus: 'active' as const,
-        membershipFee: 50,
+        membershipFee: 600,
         membershipFeeStatus: 'paid' as const,
         membershipStartDate: new Date(),
         membershipEndDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year

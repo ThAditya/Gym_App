@@ -4,17 +4,22 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import firebaseService from '../services/firebaseService';
 import { DietChart } from '../types';
 
 const DietChartScreen = () => {
+  const navigation = useNavigation();
   const { user } = useAuth();
   const [dietChart, setDietChart] = useState<DietChart | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadDietChart();
@@ -33,6 +38,12 @@ const DietChartScreen = () => {
     }
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadDietChart();
+    setRefreshing(false);
+  };
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -42,100 +53,126 @@ const DietChartScreen = () => {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Header */}
+    <View style={styles.container}>
+      {/* Enhanced Header */}
       <LinearGradient
         colors={['#667eea', '#764ba2']}
         style={styles.header}
       >
-        <Text style={styles.headerTitle}>Diet Chart</Text>
-      </LinearGradient>
-
-      {dietChart ? (
-        <>
-          {/* Diet Overview */}
-          <View style={styles.dietOverview}>
-            <Text style={styles.dietTitle}>{dietChart.name}</Text>
-            <Text style={styles.dietDescription}>{dietChart.description}</Text>
-            
-            <View style={styles.dietStats}>
-              <View style={styles.statItem}>
-                <Ionicons name="restaurant" size={20} color="#667eea" />
-                <Text style={styles.statLabel}>Goal</Text>
-                <Text style={styles.statValue}>{dietChart.goal.replace('_', ' ').toUpperCase()}</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Ionicons name="flame" size={20} color="#F44336" />
-                <Text style={styles.statLabel}>Daily Calories</Text>
-                <Text style={styles.statValue}>{dietChart.targetCalories}</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Ionicons name="time" size={20} color="#4CAF50" />
-                <Text style={styles.statLabel}>Meals</Text>
-                <Text style={styles.statValue}>{dietChart.meals.length}</Text>
-              </View>
+        <View style={styles.headerTop}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={24} color="white" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Diet Chart</Text>
+          <TouchableOpacity 
+            style={styles.refreshButton}
+            onPress={onRefresh}
+          >
+            <Ionicons name="refresh" size={24} color="white" />
+          </TouchableOpacity>
+        </View>
+        
+        {dietChart && (
+          <View style={styles.headerStats}>
+            <View style={styles.headerStatItem}>
+              <Ionicons name="restaurant" size={16} color="rgba(255,255,255,0.8)" />
+              <Text style={styles.headerStatLabel}>Goal</Text>
+              <Text style={styles.headerStatValue}>
+                {dietChart.goal.replace('_', ' ').toUpperCase()}
+              </Text>
+            </View>
+            <View style={styles.headerStatItem}>
+              <Ionicons name="flame" size={16} color="rgba(255,255,255,0.8)" />
+              <Text style={styles.headerStatLabel}>Calories</Text>
+              <Text style={styles.headerStatValue}>{dietChart.targetCalories}</Text>
+            </View>
+            <View style={styles.headerStatItem}>
+              <Ionicons name="time" size={16} color="rgba(255,255,255,0.8)" />
+              <Text style={styles.headerStatLabel}>Meals</Text>
+              <Text style={styles.headerStatValue}>{dietChart.meals.length}</Text>
             </View>
           </View>
+        )}
+      </LinearGradient>
 
-          {/* Daily Meals */}
-          <View style={styles.mealsContainer}>
-            <Text style={styles.sectionTitle}>Daily Meal Plan</Text>
-            
-            {dietChart.meals.map((meal, index) => (
-              <View key={meal.id} style={styles.mealCard}>
-                <View style={styles.mealHeader}>
-                  <View style={styles.mealIcon}>
-                    <Ionicons name="restaurant" size={24} color="#667eea" />
+      <ScrollView 
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {dietChart ? (
+          <>
+            {/* Diet Overview */}
+            <View style={styles.dietOverview}>
+              <Text style={styles.dietTitle}>{dietChart.name}</Text>
+              <Text style={styles.dietDescription}>{dietChart.description}</Text>
+            </View>
+
+            {/* Daily Meals */}
+            <View style={styles.mealsContainer}>
+              <Text style={styles.sectionTitle}>Daily Meal Plan</Text>
+              
+              {dietChart.meals.map((meal, index) => (
+                <View key={meal.id} style={styles.mealCard}>
+                  <View style={styles.mealHeader}>
+                    <View style={styles.mealIcon}>
+                      <Ionicons name="restaurant" size={24} color="#667eea" />
+                    </View>
+                    <View style={styles.mealInfo}>
+                      <Text style={styles.mealName}>{meal.name}</Text>
+                      <Text style={styles.mealTime}>{meal.time}</Text>
+                    </View>
+                    <View style={styles.mealCalories}>
+                      <Text style={styles.caloriesText}>{meal.totalCalories} cal</Text>
+                    </View>
                   </View>
-                  <View style={styles.mealInfo}>
-                    <Text style={styles.mealName}>{meal.name}</Text>
-                    <Text style={styles.mealTime}>{meal.time}</Text>
-                  </View>
-                  <View style={styles.mealCalories}>
-                    <Text style={styles.caloriesText}>{meal.totalCalories} cal</Text>
-                  </View>
+
+                  {meal.foods && meal.foods.length > 0 && (
+                    <View style={styles.foodsList}>
+                      {meal.foods.map((food) => (
+                        <View key={food.id} style={styles.foodItem}>
+                          <View style={styles.foodInfo}>
+                            <Text style={styles.foodName}>{food.name}</Text>
+                            <Text style={styles.foodQuantity}>
+                              {food.quantity} {food.unit}
+                            </Text>
+                          </View>
+                          <View style={styles.foodNutrition}>
+                            <Text style={styles.nutritionText}>{food.calories} cal</Text>
+                            <Text style={styles.nutritionText}>
+                              P: {food.protein}g | C: {food.carbs}g | F: {food.fat}g
+                            </Text>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {meal.notes && (
+                    <View style={styles.mealNotes}>
+                      <Text style={styles.notesText}>{meal.notes}</Text>
+                    </View>
+                  )}
                 </View>
-
-                {meal.foods && meal.foods.length > 0 && (
-                  <View style={styles.foodsList}>
-                    {meal.foods.map((food) => (
-                      <View key={food.id} style={styles.foodItem}>
-                        <View style={styles.foodInfo}>
-                          <Text style={styles.foodName}>{food.name}</Text>
-                          <Text style={styles.foodQuantity}>
-                            {food.quantity} {food.unit}
-                          </Text>
-                        </View>
-                        <View style={styles.foodNutrition}>
-                          <Text style={styles.nutritionText}>{food.calories} cal</Text>
-                          <Text style={styles.nutritionText}>
-                            P: {food.protein}g | C: {food.carbs}g | F: {food.fat}g
-                          </Text>
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                )}
-
-                {meal.notes && (
-                  <View style={styles.mealNotes}>
-                    <Text style={styles.notesText}>{meal.notes}</Text>
-                  </View>
-                )}
-              </View>
-            ))}
+              ))}
+            </View>
+          </>
+        ) : (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="restaurant-outline" size={80} color="#ccc" />
+            <Text style={styles.emptyTitle}>No Diet Chart Assigned</Text>
+            <Text style={styles.emptySubtitle}>
+              Your trainer will assign you a personalized diet chart based on your goals and nutritional needs.
+            </Text>
           </View>
-        </>
-      ) : (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="restaurant-outline" size={80} color="#ccc" />
-          <Text style={styles.emptyTitle}>No Diet Chart Assigned</Text>
-          <Text style={styles.emptySubtitle}>
-            Your trainer will assign you a personalized diet chart based on your goals and nutritional needs.
-          </Text>
-        </View>
-      )}
-    </ScrollView>
+        )}
+      </ScrollView>
+    </View>
   );
 };
 
@@ -154,10 +191,58 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     paddingHorizontal: 20,
   },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: 'white',
+    flex: 1,
+    textAlign: 'center',
+  },
+  refreshButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12,
+    padding: 15,
+  },
+  headerStatItem: {
+    alignItems: 'center',
+  },
+  headerStatLabel: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 4,
+  },
+  headerStatValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: 'white',
+    marginTop: 2,
+  },
+  scrollView: {
+    flex: 1,
   },
   dietOverview: {
     backgroundColor: 'white',
@@ -180,26 +265,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     lineHeight: 24,
-    marginBottom: 20,
-  },
-  dietStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 5,
-  },
-  statValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginTop: 2,
   },
   mealsContainer: {
     marginHorizontal: 20,

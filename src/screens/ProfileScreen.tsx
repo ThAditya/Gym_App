@@ -6,56 +6,42 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  TextInput,
-  Modal,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../context/AuthContext';
 import firebaseService from '../services/firebaseService';
 import { Member } from '../types';
+import RefreshHeader from '../components/RefreshHeader';
 
-const ProfileScreen = () => {
+const ProfileScreen = ({ navigation }: any) => {
   const { user, logout } = useAuth();
   const [member, setMember] = useState<Member | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editData, setEditData] = useState<Partial<Member>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    loadMemberData();
+    loadProfile();
   }, []);
 
-  const loadMemberData = async () => {
+  const loadProfile = async () => {
     if (!user?.memberId) return;
 
     try {
       const memberData = await firebaseService.getMember(user.memberId);
       setMember(memberData);
-      setEditData(memberData || {});
     } catch (error) {
-      console.error('Error loading member data:', error);
+      console.error('Error loading profile:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSave = async () => {
-    if (!member) return;
-
-    try {
-      await firebaseService.updateMember(member.id, editData);
-      setMember({ ...member, ...editData });
-      setIsEditing(false);
-      Alert.alert('Success', 'Profile updated successfully!');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to update profile');
-    }
-  };
-
-  const handleCancel = () => {
-    setEditData(member || {});
-    setIsEditing(false);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadProfile();
+    setRefreshing(false);
   };
 
   const handleLogout = () => {
@@ -69,6 +55,19 @@ const ProfileScreen = () => {
     );
   };
 
+  const getMembershipStatusColor = (status: string) => {
+    switch (status) {
+      case 'active':
+        return '#4CAF50';
+      case 'expired':
+        return '#F44336';
+      case 'pending':
+        return '#FF9800';
+      default:
+        return '#666';
+    }
+  };
+
   const formatDate = (date: Date | string) => {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     return dateObj.toLocaleDateString();
@@ -77,7 +76,7 @@ const ProfileScreen = () => {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <Text>Loading...</Text>
+        <Text>Loading profile...</Text>
       </View>
     );
   }
@@ -91,189 +90,161 @@ const ProfileScreen = () => {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Header */}
-      <LinearGradient
-        colors={['#667eea', '#764ba2']}
-        style={styles.header}
+    <View style={styles.container}>
+      <RefreshHeader
+        title="Profile"
+        subtitle="Your personal information"
+        onRefresh={onRefresh}
+        gradientColors={['#9C27B0', '#673AB7']}
+      />
+
+      <ScrollView 
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        showsVerticalScrollIndicator={false}
       >
-        <View style={styles.headerContent}>
-          <View style={styles.profileImage}>
-            <Ionicons name="person" size={50} color="white" />
-          </View>
-          <View style={styles.profileInfo}>
-            <Text style={styles.nameText}>{member.name}</Text>
-            <Text style={styles.emailText}>{member.email}</Text>
-          </View>
-          <TouchableOpacity style={styles.editButton} onPress={() => setIsEditing(true)}>
-            <Ionicons name="create-outline" size={24} color="white" />
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
-
-      {/* Profile Information */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Personal Information</Text>
-        
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Name:</Text>
-          <Text style={styles.infoValue}>{member.name}</Text>
-        </View>
-        
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Gender:</Text>
-          <Text style={styles.infoValue}>{member.gender.charAt(0).toUpperCase() + member.gender.slice(1)}</Text>
-        </View>
-        
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Height:</Text>
-          <Text style={styles.infoValue}>{member.height} cm</Text>
-        </View>
-        
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Weight:</Text>
-          <Text style={styles.infoValue}>{member.weight} kg</Text>
-        </View>
-      </View>
-
-      {/* Contact Information */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Contact Information</Text>
-        
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Email:</Text>
-          <Text style={styles.infoValue}>{member.email}</Text>
-        </View>
-        
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Phone:</Text>
-          <Text style={styles.infoValue}>{member.phone}</Text>
-        </View>
-        
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Address:</Text>
-          <Text style={styles.infoValue}>{member.address}</Text>
-        </View>
-      </View>
-
-      {/* Membership Information */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Membership Information</Text>
-        
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Status:</Text>
-          <View style={[styles.statusBadge, { backgroundColor: member.membershipStatus === 'active' ? '#4CAF50' : '#F44336' }]}>
-            <Text style={styles.statusText}>{member.membershipStatus.toUpperCase()}</Text>
-          </View>
-        </View>
-        
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Monthly Fee:</Text>
-          <Text style={styles.infoValue}>${member.membershipFee}</Text>
-        </View>
-        
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Last Payment:</Text>
-          <Text style={styles.infoValue}>{formatDate(member.lastPaymentDate)}</Text>
-        </View>
-        
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>Next Payment:</Text>
-          <Text style={styles.infoValue}>{formatDate(member.nextPaymentDate)}</Text>
-        </View>
-      </View>
-
-      {/* Account Actions */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Account Actions</Text>
-        
-        <TouchableOpacity style={styles.actionButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={20} color="#F44336" />
-          <Text style={[styles.actionButtonText, { color: '#F44336' }]}>Logout</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Edit Profile Modal */}
-      <Modal
-        visible={isEditing}
-        animationType="slide"
-        presentationStyle="pageSheet"
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Edit Profile</Text>
-            <TouchableOpacity onPress={handleCancel}>
-              <Ionicons name="close" size={24} color="#333" />
-            </TouchableOpacity>
+        <View style={styles.content}>
+          {/* Profile Header */}
+          <View style={styles.profileHeader}>
+            <View style={styles.profileImage}>
+              <Ionicons name="person" size={60} color="white" />
+            </View>
+            <View style={styles.profileInfo}>
+              <Text style={styles.profileName}>{member.name}</Text>
+              <Text style={styles.profileEmail}>{member.email}</Text>
+              <View style={styles.membershipStatus}>
+                <View 
+                  style={[
+                    styles.statusDot, 
+                    { backgroundColor: getMembershipStatusColor(member.membershipStatus) }
+                  ]} 
+                />
+                <Text style={styles.statusText}>
+                  {member.membershipStatus.toUpperCase()}
+                </Text>
+              </View>
+            </View>
           </View>
 
-          <ScrollView style={styles.modalContent}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Name</Text>
-              <TextInput
-                style={styles.input}
-                value={editData.name}
-                onChangeText={(text) => setEditData({ ...editData, name: text })}
-                placeholder="Enter your name"
-              />
+          {/* Personal Information */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Personal Information</Text>
+            <View style={styles.infoCard}>
+              <View style={styles.infoRow}>
+                <Ionicons name="person" size={20} color="#9C27B0" />
+                <Text style={styles.infoLabel}>Name:</Text>
+                <Text style={styles.infoValue}>{member.name}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Ionicons name="mail" size={20} color="#9C27B0" />
+                <Text style={styles.infoLabel}>Email:</Text>
+                <Text style={styles.infoValue}>{member.email}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Ionicons name="call" size={20} color="#9C27B0" />
+                <Text style={styles.infoLabel}>Phone:</Text>
+                <Text style={styles.infoValue}>{member.phone}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Ionicons name="location" size={20} color="#9C27B0" />
+                <Text style={styles.infoLabel}>Address:</Text>
+                <Text style={styles.infoValue}>{member.address}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Ionicons name="body" size={20} color="#9C27B0" />
+                <Text style={styles.infoLabel}>Gender:</Text>
+                <Text style={styles.infoValue}>{member.gender}</Text>
+              </View>
             </View>
+          </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Phone</Text>
-              <TextInput
-                style={styles.input}
-                value={editData.phone}
-                onChangeText={(text) => setEditData({ ...editData, phone: text })}
-                placeholder="Enter your phone number"
-                keyboardType="phone-pad"
-              />
+          {/* Physical Stats */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Physical Stats</Text>
+            <View style={styles.statsCard}>
+              <View style={styles.statItem}>
+                <Ionicons name="resize" size={24} color="#4CAF50" />
+                <Text style={styles.statValue}>{member.height} cm</Text>
+                <Text style={styles.statLabel}>Height</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Ionicons name="scale" size={24} color="#FF9800" />
+                <Text style={styles.statValue}>{member.weight} kg</Text>
+                <Text style={styles.statLabel}>Weight</Text>
+              </View>
             </View>
+          </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Address</Text>
-              <TextInput
-                style={styles.input}
-                value={editData.address}
-                onChangeText={(text) => setEditData({ ...editData, address: text })}
-                placeholder="Enter your address"
-                multiline
-              />
+          {/* Membership Information */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Membership Details</Text>
+            <View style={styles.membershipCard}>
+              <View style={styles.membershipRow}>
+                <Text style={styles.membershipLabel}>Status:</Text>
+                <View style={[
+                  styles.membershipBadge, 
+                  { backgroundColor: getMembershipStatusColor(member.membershipStatus) }
+                ]}>
+                  <Text style={styles.membershipBadgeText}>
+                    {member.membershipStatus.toUpperCase()}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.membershipRow}>
+                <Text style={styles.membershipLabel}>Fee:</Text>
+                <Text style={styles.membershipValue}>${member.membershipFee}/month</Text>
+              </View>
+              <View style={styles.membershipRow}>
+                <Text style={styles.membershipLabel}>Start Date:</Text>
+                <Text style={styles.membershipValue}>{formatDate(member.membershipStartDate)}</Text>
+              </View>
+              <View style={styles.membershipRow}>
+                <Text style={styles.membershipLabel}>End Date:</Text>
+                <Text style={styles.membershipValue}>{formatDate(member.membershipEndDate)}</Text>
+              </View>
+              <View style={styles.membershipRow}>
+                <Text style={styles.membershipLabel}>Next Payment:</Text>
+                <Text style={styles.membershipValue}>{formatDate(member.nextPaymentDate)}</Text>
+              </View>
             </View>
+          </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Height (cm)</Text>
-              <TextInput
-                style={styles.input}
-                value={editData.height?.toString()}
-                onChangeText={(text) => setEditData({ ...editData, height: parseFloat(text) || 0 })}
-                placeholder="Enter your height"
-                keyboardType="numeric"
-              />
+          {/* Emergency Contact */}
+          {member.emergencyContact && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Emergency Contact</Text>
+              <View style={styles.emergencyCard}>
+                <View style={styles.emergencyRow}>
+                  <Ionicons name="person" size={20} color="#F44336" />
+                  <Text style={styles.emergencyLabel}>Name:</Text>
+                  <Text style={styles.emergencyValue}>{member.emergencyContact.name}</Text>
+                </View>
+                <View style={styles.emergencyRow}>
+                  <Ionicons name="call" size={20} color="#F44336" />
+                  <Text style={styles.emergencyLabel}>Phone:</Text>
+                  <Text style={styles.emergencyValue}>{member.emergencyContact.phone}</Text>
+                </View>
+                <View style={styles.emergencyRow}>
+                  <Ionicons name="people" size={20} color="#F44336" />
+                  <Text style={styles.emergencyLabel}>Relationship:</Text>
+                  <Text style={styles.emergencyValue}>{member.emergencyContact.relationship}</Text>
+                </View>
+              </View>
             </View>
+          )}
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Weight (kg)</Text>
-              <TextInput
-                style={styles.input}
-                value={editData.weight?.toString()}
-                onChangeText={(text) => setEditData({ ...editData, weight: parseFloat(text) || 0 })}
-                placeholder="Enter your weight"
-                keyboardType="numeric"
-              />
-            </View>
-          </ScrollView>
-
-          <View style={styles.modalFooter}>
-            <TouchableOpacity style={styles.cancelButton} onPress={handleCancel}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-              <Text style={styles.saveButtonText}>Save</Text>
+          {/* Actions */}
+          <View style={styles.section}>
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+              <Ionicons name="log-out-outline" size={24} color="white" />
+              <Text style={styles.logoutButtonText}>Logout</Text>
             </TouchableOpacity>
           </View>
         </View>
-      </Modal>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 };
 
@@ -292,19 +263,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
-    paddingTop: 50,
-    paddingBottom: 30,
-    paddingHorizontal: 20,
+  scrollView: {
+    flex: 1,
   },
-  headerContent: {
+  content: {
+    padding: 20,
+  },
+  profileHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 20,
   },
   profileImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -313,24 +286,37 @@ const styles = StyleSheet.create({
   profileInfo: {
     flex: 1,
   },
-  nameText: {
+  profileName: {
     color: 'white',
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
   },
-  emailText: {
+  profileEmail: {
     color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 16,
+    fontSize: 18,
     marginTop: 5,
   },
-  editButton: {
-    padding: 8,
+  membershipStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  statusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 8,
+  },
+  statusText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   section: {
     backgroundColor: 'white',
-    margin: 20,
     borderRadius: 15,
     padding: 20,
+    marginBottom: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -343,9 +329,12 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 15,
   },
+  infoCard: {
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
   infoRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
@@ -355,6 +344,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     fontWeight: '500',
+    marginLeft: 10,
   },
   infoValue: {
     fontSize: 16,
@@ -364,97 +354,96 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 10,
   },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  actionButton: {
+  statsCard: {
     flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 10,
+  },
+  statItem: {
     alignItems: 'center',
-    paddingVertical: 15,
+    marginHorizontal: 10,
   },
-  actionButtonText: {
-    fontSize: 16,
-    marginLeft: 10,
-    fontWeight: '500',
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: 'white',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-    paddingTop: 50,
-  },
-  modalTitle: {
+  statValue: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
+    marginTop: 5,
   },
-  modalContent: {
-    flex: 1,
-    padding: 20,
+  statLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 2,
   },
-  inputGroup: {
-    marginBottom: 20,
+  membershipCard: {
+    borderRadius: 10,
+    overflow: 'hidden',
   },
-  inputLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: '#f8f9fa',
-  },
-  modalFooter: {
+  membershipRow: {
     flexDirection: 'row',
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-  },
-  cancelButton: {
-    flex: 1,
-    padding: 15,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    marginRight: 10,
+    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
-  cancelButtonText: {
+  membershipLabel: {
     fontSize: 16,
     color: '#666',
     fontWeight: '500',
   },
-  saveButton: {
-    flex: 1,
-    padding: 15,
-    borderRadius: 8,
-    backgroundColor: '#667eea',
-    marginLeft: 10,
-    alignItems: 'center',
+  membershipBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
-  saveButtonText: {
-    fontSize: 16,
+  membershipBadgeText: {
     color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  membershipValue: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '400',
+    textAlign: 'right',
+  },
+  emergencyCard: {
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  emergencyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  emergencyLabel: {
+    fontSize: 16,
+    color: '#666',
     fontWeight: '500',
+  },
+  emergencyValue: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '400',
+    textAlign: 'right',
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 15,
+    backgroundColor: '#F44336',
+    borderRadius: 10,
+    marginTop: 20,
+  },
+  logoutButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginLeft: 10,
   },
 });
 

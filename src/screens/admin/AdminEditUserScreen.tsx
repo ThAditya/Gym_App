@@ -102,7 +102,7 @@ const AdminEditUserScreen = () => {
         weight: parseFloat(formData.weight) || 0,
         gender: formData.gender as 'male' | 'female' | 'other',
         membershipStatus: formData.membershipStatus as 'active' | 'expired' | 'pending',
-        membershipFee: parseFloat(formData.membershipFee) || 0,
+        membershipFee: parseFloat(formData.membershipFee) || 600,
         membershipFeeStatus: formData.membershipFeeStatus as 'paid' | 'pending' | 'overdue',
       };
 

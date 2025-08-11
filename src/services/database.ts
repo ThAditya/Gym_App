@@ -222,7 +222,7 @@ class DatabaseService {
         phone: '+1234567890',
         address: '123 Main St, City',
         membershipStatus: 'active',
-        membershipFee: 50,
+        membershipFee: 600,
         membershipFeeStatus: 'paid',
         membershipStartDate: new Date('2024-01-01'),
         membershipEndDate: new Date('2024-12-31'),

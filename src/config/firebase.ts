@@ -3,11 +3,22 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getFirebaseConfig } from './environment';
 
-// Initialize Firebase with configuration from environment
 const firebaseConfig = getFirebaseConfig();
-const app = initializeApp(firebaseConfig);
 
-// Initialize Firebase services
+const formattedConfig = {
+  apiKey: firebaseConfig.API_KEY,
+  authDomain: firebaseConfig.AUTH_DOMAIN,
+  projectId: firebaseConfig.PROJECT_ID,
+  storageBucket: firebaseConfig.STORAGE_BUCKET,
+  messagingSenderId: firebaseConfig.MESSAGING_SENDER_ID,
+  appId: firebaseConfig.APP_ID,
+  // Add optional configurations only if they have values
+  ...(firebaseConfig.MEASUREMENT_ID && { measurementId: firebaseConfig.MEASUREMENT_ID }),
+  ...(firebaseConfig.DATABASE_URL && { databaseURL: firebaseConfig.DATABASE_URL }),
+};
+
+const app = initializeApp(formattedConfig);
+
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 

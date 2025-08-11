@@ -12,14 +12,17 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { useAuth } from '../../context/AuthContext';
 import firebaseService from '../../services/firebaseService';
 import { Member, Workout, ProgressLog, FitnessPlan, DietChart } from '../../types';
 import { RootStackParamList } from '../../types/navigation';
+import QRModal from '../../components/QRModal';
 
 type AdminNavigationProp = StackNavigationProp<RootStackParamList>;
 
 const AdminDashboardScreen = () => {
   const navigation = useNavigation<AdminNavigationProp>();
+  const { logout } = useAuth();
   const [stats, setStats] = useState({
     totalMembers: 0,
     totalWorkouts: 0,
@@ -29,6 +32,7 @@ const AdminDashboardScreen = () => {
   });
   const [recentMembers, setRecentMembers] = useState<Member[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [qrModalVisible, setQrModalVisible] = useState(false);
 
   const loadData = async () => {
     try {
@@ -69,6 +73,17 @@ const AdminDashboardScreen = () => {
     setRefreshing(false);
   };
 
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Logout', onPress: logout, style: 'destructive' },
+      ]
+    );
+  };
+
   const StatCard = ({ title, value, icon, color, onPress }: {
     title: string;
     value: number;
@@ -107,116 +122,152 @@ const AdminDashboardScreen = () => {
   );
 
   return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      <LinearGradient
-        colors={['#FF6B35', '#F7931E']}
-        style={styles.header}
+    <>
+      <ScrollView
+        style={styles.container}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
-        <Text style={styles.headerTitle}>Admin Dashboard</Text>
-        <Text style={styles.headerSubtitle}>Manage your gym operations</Text>
-      </LinearGradient>
-
-      <View style={styles.content}>
-        {/* Statistics */}
-        <Text style={styles.sectionTitle}>Overview</Text>
-        <View style={styles.statsGrid}>
-          <StatCard
-            title="Members"
-            value={stats.totalMembers}
-            icon="people"
-            color="#007AFF"
-          />
-          <StatCard
-            title="Workouts"
-            value={stats.totalWorkouts}
-            icon="fitness"
-            color="#34C759"
-          />
-          <StatCard
-            title="Progress Logs"
-            value={stats.totalProgressLogs}
-            icon="trending-up"
-            color="#FF9500"
-          />
-          <StatCard
-            title="Fitness Plans"
-            value={stats.totalFitnessPlans}
-            icon="flag"
-            color="#AF52DE"
-          />
-          <StatCard
-            title="Diet Charts"
-            value={stats.totalDietCharts}
-            icon="restaurant"
-            color="#FF3B30"
-          />
-        </View>
-
-        {/* Quick Actions */}
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <View style={styles.quickActions}>
-          <QuickActionCard
-            title="Manage Users"
-            description="View, edit, and manage member accounts"
-            icon="people"
-            onPress={() => {}}
-          />
-          <QuickActionCard
-            title="View Workouts"
-            description="Monitor all workout activities"
-            icon="fitness"
-            onPress={() => {}}
-          />
-          <QuickActionCard
-            title="Track Progress"
-            description="Review member progress logs"
-            icon="trending-up"
-            onPress={() => {}}
-          />
-          <QuickActionCard
-            title="Fitness Plans"
-            description="Manage fitness plans and templates"
-            icon="flag"
-            onPress={() => {}}
-          />
-          <QuickActionCard
-            title="Diet Charts"
-            description="Manage diet charts and meal plans"
-            icon="restaurant"
-            onPress={() => {}}
-          />
-        </View>
-
-        {/* Recent Members */}
-        <Text style={styles.sectionTitle}>Recent Members</Text>
-        <View style={styles.recentMembers}>
-          {recentMembers.map((member) => (
-            <TouchableOpacity
-              key={member.id}
-              style={styles.memberCard}
-              onPress={() => navigation.navigate('AdminEditUser', { userId: member.id })}
-            >
-              <View style={styles.memberInfo}>
-                <Text style={styles.memberName}>{member.name}</Text>
-                <Text style={styles.memberEmail}>{member.email}</Text>
-                <Text style={styles.memberStatus}>
-                  Status: {member.membershipStatus}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+        <LinearGradient
+          colors={['#FF6B35', '#F7931E']}
+          style={styles.header}
+        >
+          <View style={styles.headerContent}>
+            <View style={styles.headerInfo}>
+              <Text style={styles.headerTitle}>Admin Dashboard</Text>
+              <Text style={styles.headerSubtitle}>Manage your gym operations</Text>
+            </View>
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+              <Ionicons name="log-out-outline" size={24} color="white" />
             </TouchableOpacity>
-          ))}
-          {recentMembers.length === 0 && (
-            <Text style={styles.noDataText}>No members found</Text>
-          )}
+          </View>
+        </LinearGradient>
+
+        <View style={styles.content}>
+          {/* Statistics */}
+          <Text style={styles.sectionTitle}>Overview</Text>
+          <View style={styles.statsGrid}>
+            <StatCard
+              title="Members"
+              value={stats.totalMembers}
+              icon="people"
+              color="#007AFF"
+            />
+            <StatCard
+              title="Workouts"
+              value={stats.totalWorkouts}
+              icon="fitness"
+              color="#34C759"
+            />
+            <StatCard
+              title="Progress Logs"
+              value={stats.totalProgressLogs}
+              icon="trending-up"
+              color="#FF9500"
+            />
+            <StatCard
+              title="Fitness Plans"
+              value={stats.totalFitnessPlans}
+              icon="flag"
+              color="#AF52DE"
+            />
+            <StatCard
+              title="Diet Charts"
+              value={stats.totalDietCharts}
+              icon="restaurant"
+              color="#FF3B30"
+            />
+            <StatCard
+              title="QR Code"
+              value={0}
+              icon="qr-code"
+              color="#5856D6"
+              onPress={() => setQrModalVisible(true)}
+            />
+          </View>
+
+          {/* Quick Actions */}
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.quickActions}>
+            <QuickActionCard
+              title="Manage Users"
+              description="View, edit, and manage member accounts"
+              icon="people"
+              onPress={() => {}}
+            />
+            <QuickActionCard
+              title="View Workouts"
+              description="Monitor all workout activities"
+              icon="fitness"
+              onPress={() => {}}
+            />
+            <QuickActionCard
+              title="Track Progress"
+              description="Review member progress logs"
+              icon="trending-up"
+              onPress={() => {}}
+            />
+            <QuickActionCard
+              title="Fitness Plans"
+              description="Manage fitness plans and templates"
+              icon="flag"
+              onPress={() => {}}
+            />
+            <QuickActionCard
+              title="Diet Charts"
+              description="Manage diet charts and meal plans"
+              icon="restaurant"
+              onPress={() => {}}
+            />
+            <QuickActionCard
+              title="Show QR Code"
+              description="Display QR code for app access"
+              icon="qr-code"
+              onPress={() => setQrModalVisible(true)}
+            />
+            <QuickActionCard
+              title="Manage Notifications"
+              description="Send renewal reminders and manage notifications"
+              icon="notifications"
+              onPress={() => navigation.navigate('AdminNotifications')}
+            />
+          </View>
+
+          {/* Recent Members */}
+          <Text style={styles.sectionTitle}>Recent Members</Text>
+          <View style={styles.recentMembers}>
+            {recentMembers.map((member) => (
+              <TouchableOpacity
+                key={member.id}
+                style={styles.memberCard}
+                onPress={() => navigation.navigate('AdminEditUser', { userId: member.id })}
+              >
+                <View style={styles.memberInfo}>
+                  <Text style={styles.memberName}>{member.name}</Text>
+                  <Text style={styles.memberEmail}>{member.email}</Text>
+                  <Text style={styles.memberStatus}>
+                    Status: {member.membershipStatus}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+              </TouchableOpacity>
+            ))}
+            {recentMembers.length === 0 && (
+              <Text style={styles.noDataText}>No members found</Text>
+            )}
+          </View>
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+
+      {/* QR Code Modal */}
+      <QRModal
+        visible={qrModalVisible}
+        onClose={() => setQrModalVisible(false)}
+        title="TheGymEye QR Code"
+        qrImageUrl="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=https://thegymeye.com/admin&bgcolor=FFFFFF&color=000000"
+      />
+    </>
   );
 };
 
@@ -230,6 +281,14 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
     paddingHorizontal: 20,
   },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerInfo: {
+    flex: 1,
+  },
   headerTitle: {
     fontSize: 28,
     fontWeight: 'bold',
@@ -239,6 +298,14 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 16,
     color: 'rgba(255, 255, 255, 0.8)',
+  },
+  logoutButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   content: {
     padding: 20,

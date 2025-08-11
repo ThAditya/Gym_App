@@ -456,6 +456,24 @@ export const getNotificationsByUser = async (userId: string): Promise<Notificati
   }
 };
 
+export const getAllNotifications = async (): Promise<Notification[]> => {
+  try {
+    const q = query(
+      collection(db, 'notifications'),
+      orderBy('createdAt', 'desc')
+    );
+    const querySnapshot = await getDocs(q);
+    
+    return querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...convertFromFirestore(doc.data())
+    })) as Notification[];
+  } catch (error) {
+    console.error('Error getting all notifications:', error);
+    throw error;
+  }
+};
+
 export const markNotificationAsRead = async (id: string): Promise<void> => {
   try {
     const docRef = doc(db, 'notifications', id);
@@ -465,6 +483,32 @@ export const markNotificationAsRead = async (id: string): Promise<void> => {
     });
   } catch (error) {
     console.error('Error marking notification as read:', error);
+    throw error;
+  }
+};
+
+export const deleteNotification = async (id: string): Promise<void> => {
+  try {
+    const docRef = doc(db, 'notifications', id);
+    await deleteDoc(docRef);
+  } catch (error) {
+    console.error('Error deleting notification:', error);
+    throw error;
+  }
+};
+
+export const getMembersNeedingRenewal = async (daysThreshold: number = 30): Promise<Member[]> => {
+  try {
+    const members = await getAllMembers();
+    const today = new Date();
+    const thresholdDate = new Date(today.getTime() + (daysThreshold * 24 * 60 * 60 * 1000));
+    
+    return members.filter(member => {
+      const endDate = new Date(member.membershipEndDate);
+      return member.membershipStatus === 'active' && endDate <= thresholdDate;
+    });
+  } catch (error) {
+    console.error('Error getting members needing renewal:', error);
     throw error;
   }
 };
@@ -593,7 +637,7 @@ export const initializeSampleData = async (): Promise<void> => {
       weight: 70,
       gender: 'male',
       membershipStatus: 'active',
-      membershipFee: 50,
+      membershipFee: 600,
       membershipFeeStatus: 'paid',
       membershipStartDate: new Date('2024-01-01'),
       membershipEndDate: new Date('2024-12-31'),
@@ -617,7 +661,7 @@ export const initializeSampleData = async (): Promise<void> => {
       weight: 55,
       gender: 'female',
       membershipStatus: 'active',
-      membershipFee: 50,
+      membershipFee: 600,
       membershipFeeStatus: 'paid',
       membershipStartDate: new Date('2024-01-01'),
       membershipEndDate: new Date('2024-12-31'),
@@ -751,5 +795,8 @@ export default {
   deleteMember,
   deleteAuthUser,
   deleteFitnessPlan,
-  deleteDietChart
+  deleteDietChart,
+  getAllNotifications,
+  deleteNotification,
+  getMembersNeedingRenewal
 }; 

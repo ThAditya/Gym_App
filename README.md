@@ -1,4 +1,4 @@
-# Gym Management Application
+# TheGymEye - Gym Management Application
 
 A full-featured React Native mobile application for gym management with Firebase backend integration. This app allows gym members to track their fitness journey, manage workouts, monitor progress, and follow personalized fitness plans and diet charts.
 
@@ -56,7 +56,7 @@ Before running this application, make sure you have:
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd GymApp
+   cd thegymeye
    ```
 
 2. **Install dependencies**
@@ -80,7 +80,7 @@ Before running this application, make sure you have:
 ## Project Structure
 
 ```
-GymApp/
+thegymeye/
 ├── src/
 │   ├── components/          # Reusable UI components
 │   ├── config/             # Configuration files

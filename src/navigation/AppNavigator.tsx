@@ -5,6 +5,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { AuthContext } from '../context/AuthContext';
 import { RootStackParamList, MemberTabParamList, AdminTabParamList } from '../types/navigation';
+import NotificationBadge from '../components/NotificationBadge';
+import { View } from 'react-native';
 
 // Auth screens
 import LoginScreen from '../screens/LoginScreen';
@@ -19,6 +21,7 @@ import ProgressScreen from '../screens/ProgressScreen';
 import AddProgressScreen from '../screens/AddProgressScreen';
 import FitnessPlanScreen from '../screens/FitnessPlanScreen';
 import DietChartScreen from '../screens/DietChartScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
 
 // Admin screens
 import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
@@ -32,6 +35,7 @@ import AdminEditWorkoutScreen from '../screens/admin/AdminEditWorkoutScreen';
 import AdminEditProgressScreen from '../screens/admin/AdminEditProgressScreen';
 import AdminEditFitnessPlanScreen from '../screens/admin/AdminEditFitnessPlanScreen';
 import AdminEditDietChartScreen from '../screens/admin/AdminEditDietChartScreen';
+import AdminNotificationsScreen from '../screens/admin/AdminNotificationsScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MemberTabParamList>();
@@ -56,11 +60,25 @@ const MemberTabNavigator = () => {
             iconName = focused ? 'flag' : 'flag-outline';
           } else if (route.name === 'Diet Chart') {
             iconName = focused ? 'restaurant' : 'restaurant-outline';
+          } else if (route.name === 'Notifications') {
+            iconName = focused ? 'notifications' : 'notifications-outline';
           } else {
             iconName = 'help-outline';
           }
 
-          return <Ionicons name={iconName} size={size} color={color} />;
+          const icon = <Ionicons name={iconName} size={size} color={color} />;
+
+          // Add notification badge for notifications tab
+          if (route.name === 'Notifications') {
+            return (
+              <View style={{ position: 'relative' }}>
+                {icon}
+                <NotificationBadge size={16} />
+              </View>
+            );
+          }
+
+          return icon;
         },
         tabBarActiveTintColor: '#007AFF',
         tabBarInactiveTintColor: 'gray',
@@ -72,6 +90,7 @@ const MemberTabNavigator = () => {
       <Tab.Screen name="Progress" component={ProgressScreen} />
       <Tab.Screen name="Fitness Plan" component={FitnessPlanScreen} />
       <Tab.Screen name="Diet Chart" component={DietChartScreen} />
+      <Tab.Screen name="Notifications" component={NotificationsScreen} />
     </Tab.Navigator>
   );
 };
@@ -111,6 +130,7 @@ const AdminTabNavigator = () => {
       <AdminTab.Screen name="Progress" component={AdminProgressScreen} />
       <AdminTab.Screen name="Fitness Plans" component={AdminFitnessPlansScreen} />
       <AdminTab.Screen name="Diet Charts" component={AdminDietChartsScreen} />
+      <AdminTab.Screen name="Notifications" component={AdminNotificationsScreen} />
     </AdminTab.Navigator>
   );
 };
@@ -142,6 +162,7 @@ const AppNavigator = () => {
             <Stack.Screen name="AdminEditProgress" component={AdminEditProgressScreen} />
             <Stack.Screen name="AdminEditFitnessPlan" component={AdminEditFitnessPlanScreen} />
             <Stack.Screen name="AdminEditDietChart" component={AdminEditDietChartScreen} />
+            <Stack.Screen name="AdminNotifications" component={AdminNotificationsScreen} />
           </>
         ) : (
           // Member screens

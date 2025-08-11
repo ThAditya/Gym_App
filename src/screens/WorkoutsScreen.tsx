@@ -6,17 +6,20 @@ import {
   ScrollView,
   TouchableOpacity,
   FlatList,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../context/AuthContext';
 import firebaseService from '../services/firebaseService';
 import { Workout } from '../types';
+import RefreshHeader from '../components/RefreshHeader';
 
 const WorkoutsScreen = ({ navigation }: any) => {
   const { user } = useAuth();
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadWorkouts();
@@ -33,6 +36,12 @@ const WorkoutsScreen = ({ navigation }: any) => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadWorkouts();
+    setRefreshing(false);
   };
 
   const formatDate = (date: Date | string) => {
@@ -101,9 +110,9 @@ const WorkoutsScreen = ({ navigation }: any) => {
           )}
         </View>
       )}
-      
+
       {item.notes && (
-        <View style={styles.notesContainer}>
+        <View style={styles.notesSection}>
           <Text style={styles.notesText}>{item.notes}</Text>
         </View>
       )}
@@ -120,44 +129,47 @@ const WorkoutsScreen = ({ navigation }: any) => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <LinearGradient
-        colors={['#667eea', '#764ba2']}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
-          <Text style={styles.headerTitle}>My Workouts</Text>
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => navigation.navigate('AddWorkout')}
-          >
-            <Ionicons name="add" size={24} color="white" />
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
+      <RefreshHeader
+        title="Workouts"
+        subtitle={`${workouts.length} workouts completed`}
+        onRefresh={onRefresh}
+        gradientColors={['#2196F3', '#1976D2']}
+      />
 
-      {/* Workouts List */}
-      {workouts.length > 0 ? (
-        <FlatList
-          data={workouts}
-          renderItem={renderWorkoutItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContainer}
-          showsVerticalScrollIndicator={false}
-        />
-      ) : (
-        <View style={styles.emptyContainer}>
-          <Ionicons name="fitness-outline" size={80} color="#ccc" />
-          <Text style={styles.emptyTitle}>No Workouts Yet</Text>
-          <Text style={styles.emptySubtitle}>Start your fitness journey by adding your first workout!</Text>
-          <TouchableOpacity
-            style={styles.emptyAddButton}
-            onPress={() => navigation.navigate('AddWorkout')}
-          >
-            <Text style={styles.emptyAddButtonText}>Add Your First Workout</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      <FlatList
+        data={workouts}
+        renderItem={renderWorkoutItem}
+        keyExtractor={(item) => item.id}
+        style={styles.workoutList}
+        contentContainerStyle={styles.workoutListContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Ionicons name="fitness-outline" size={80} color="#ccc" />
+            <Text style={styles.emptyTitle}>No Workouts Yet</Text>
+            <Text style={styles.emptySubtitle}>
+              Start your fitness journey by adding your first workout!
+            </Text>
+            <TouchableOpacity
+              style={styles.addWorkoutButton}
+              onPress={() => navigation.navigate('AddWorkout')}
+            >
+              <Ionicons name="add" size={24} color="white" />
+              <Text style={styles.addWorkoutButtonText}>Add Workout</Text>
+            </TouchableOpacity>
+          </View>
+        }
+      />
+
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => navigation.navigate('AddWorkout')}
+      >
+        <Ionicons name="add" size={30} color="white" />
+      </TouchableOpacity>
     </View>
   );
 };
@@ -311,6 +323,48 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  workoutList: {
+    flex: 1,
+  },
+  workoutListContent: {
+    padding: 20,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#667eea',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  addWorkoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#667eea',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 25,
+    marginTop: 20,
+  },
+  addWorkoutButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 10,
+  },
+  notesSection: {
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    paddingTop: 15,
   },
 });
 

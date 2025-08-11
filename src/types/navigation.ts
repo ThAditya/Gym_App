@@ -10,6 +10,7 @@ export type RootStackParamList = {
   AdminEditProgress: { progressId: string };
   AdminEditFitnessPlan: { planId: string };
   AdminEditDietChart: { chartId: string };
+  AdminNotifications: undefined;
 };
 
 export type MemberTabParamList = {
@@ -19,6 +20,7 @@ export type MemberTabParamList = {
   Progress: undefined;
   'Fitness Plan': undefined;
   'Diet Chart': undefined;
+  Notifications: undefined;
 };
 
 export type AdminTabParamList = {
@@ -28,4 +30,5 @@ export type AdminTabParamList = {
   Progress: undefined;
   'Fitness Plans': undefined;
   'Diet Charts': undefined;
+  Notifications: undefined;
 }; 

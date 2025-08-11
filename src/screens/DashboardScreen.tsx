@@ -6,12 +6,14 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../context/AuthContext';
 import firebaseService from '../services/firebaseService';
 import { Member, Workout, ProgressLog } from '../types';
+import RefreshHeader from '../components/RefreshHeader';
 
 const DashboardScreen = ({ navigation }: any) => {
   const { user, logout } = useAuth();
@@ -19,6 +21,7 @@ const DashboardScreen = ({ navigation }: any) => {
   const [recentWorkouts, setRecentWorkouts] = useState<Workout[]>([]);
   const [recentProgress, setRecentProgress] = useState<ProgressLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -40,6 +43,12 @@ const DashboardScreen = ({ navigation }: any) => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadDashboardData();
+    setRefreshing(false);
   };
 
   const handleLogout = () => {
@@ -88,151 +97,131 @@ const DashboardScreen = ({ navigation }: any) => {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Header */}
-      <LinearGradient
-        colors={['#667eea', '#764ba2']}
-        style={styles.header}
+    <View style={styles.container}>
+      <RefreshHeader
+        title="Dashboard"
+        subtitle={`Welcome back, ${member.name}!`}
+        onRefresh={onRefresh}
+        gradientColors={['#667eea', '#764ba2']}
+      />
+
+      <ScrollView 
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        showsVerticalScrollIndicator={false}
       >
-        <View style={styles.headerContent}>
+        <View style={styles.content}>
+          {/* Profile Section */}
           <View style={styles.profileSection}>
             <View style={styles.profileImage}>
               <Ionicons name="person" size={40} color="white" />
             </View>
             <View style={styles.profileInfo}>
-              <Text style={styles.welcomeText}>Welcome back,</Text>
-              <Text style={styles.nameText}>{member.name}</Text>
+              <Text style={styles.profileName}>{member.name}</Text>
+              <Text style={styles.profileEmail}>{member.email}</Text>
+              <View style={styles.membershipStatus}>
+                <View 
+                  style={[
+                    styles.statusDot, 
+                    { backgroundColor: getMembershipStatusColor(member.membershipStatus) }
+                  ]} 
+                />
+                <Text style={styles.statusText}>
+                  {member.membershipStatus.toUpperCase()}
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+              <Ionicons name="log-out-outline" size={24} color="white" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Quick Stats */}
+          <View style={styles.statsContainer}>
+            <View style={styles.statCard}>
+              <Ionicons name="fitness" size={24} color="#667eea" />
+              <Text style={styles.statValue}>{recentWorkouts.length}</Text>
+              <Text style={styles.statLabel}>Recent Workouts</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Ionicons name="trending-up" size={24} color="#4CAF50" />
+              <Text style={styles.statValue}>{recentProgress.length}</Text>
+              <Text style={styles.statLabel}>Progress Logs</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Ionicons name="calendar" size={24} color="#FF9800" />
+              <Text style={styles.statValue}>
+                {formatDate(member.membershipEndDate)}
+              </Text>
+              <Text style={styles.statLabel}>Expires</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={24} color="white" />
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
 
-      {/* Membership Status */}
-      <View style={styles.membershipCard}>
-        <View style={styles.membershipHeader}>
-          <Ionicons name="card-outline" size={24} color="#667eea" />
-          <Text style={styles.membershipTitle}>Membership Status</Text>
-        </View>
-        <View style={styles.membershipDetails}>
-          <View style={styles.statusRow}>
-            <Text style={styles.statusLabel}>Status:</Text>
-            <View style={[styles.statusBadge, { backgroundColor: getMembershipStatusColor(member.membershipStatus) }]}>
-              <Text style={styles.statusText}>{member.membershipStatus.toUpperCase()}</Text>
+          {/* Recent Workouts */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recent Workouts</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Workouts')}>
+                <Text style={styles.seeAllText}>See All</Text>
+              </TouchableOpacity>
             </View>
+            {recentWorkouts.length > 0 ? (
+              recentWorkouts.map((workout) => (
+                                 <View key={workout.id} style={styles.workoutCard}>
+                   <View style={styles.workoutInfo}>
+                     <Text style={styles.workoutName}>{workout.type} Workout</Text>
+                     <Text style={styles.workoutDate}>
+                       {formatDate(workout.date)}
+                     </Text>
+                   </View>
+                   <View style={styles.workoutStats}>
+                     <Text style={styles.workoutDuration}>
+                       {workout.duration} min
+                     </Text>
+                     <Text style={styles.workoutCalories}>
+                       {workout.caloriesBurned || 0} cal
+                     </Text>
+                   </View>
+                 </View>
+              ))
+            ) : (
+              <Text style={styles.noDataText}>No recent workouts</Text>
+            )}
           </View>
-          <View style={styles.statusRow}>
-            <Text style={styles.statusLabel}>Fee:</Text>
-            <Text style={styles.statusValue}>${member.membershipFee}/month</Text>
-          </View>
-          <View style={styles.statusRow}>
-            <Text style={styles.statusLabel}>Next Payment:</Text>
-            <Text style={styles.statusValue}>{formatDate(member.nextPaymentDate)}</Text>
+
+          {/* Recent Progress */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recent Progress</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Progress')}>
+                <Text style={styles.seeAllText}>See All</Text>
+              </TouchableOpacity>
+            </View>
+            {recentProgress.length > 0 ? (
+                             recentProgress.map((progress) => (
+                 <View key={progress.id} style={styles.progressCard}>
+                   <View style={styles.progressInfo}>
+                     <Text style={styles.progressType}>Weight Progress</Text>
+                     <Text style={styles.progressDate}>
+                       {formatDate(progress.date)}
+                     </Text>
+                   </View>
+                   <View style={styles.progressValue}>
+                     <Text style={styles.progressNumber}>
+                       {progress.weight} kg
+                     </Text>
+                   </View>
+                 </View>
+               ))
+            ) : (
+              <Text style={styles.noDataText}>No recent progress logs</Text>
+            )}
           </View>
         </View>
-      </View>
-
-      {/* Quick Stats */}
-      <View style={styles.statsContainer}>
-        <Text style={styles.sectionTitle}>Quick Stats</Text>
-        <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
-            <Ionicons name="fitness" size={24} color="#667eea" />
-            <Text style={styles.statNumber}>{recentWorkouts.length}</Text>
-            <Text style={styles.statLabel}>Recent Workouts</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Ionicons name="trending-up" size={24} color="#4CAF50" />
-            <Text style={styles.statNumber}>{recentProgress.length}</Text>
-            <Text style={styles.statLabel}>Progress Logs</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Ionicons name="scale" size={24} color="#FF9800" />
-            <Text style={styles.statNumber}>{member.weight}kg</Text>
-            <Text style={styles.statLabel}>Current Weight</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Ionicons name="resize" size={24} color="#9C27B0" />
-            <Text style={styles.statNumber}>{member.height}cm</Text>
-            <Text style={styles.statLabel}>Height</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Quick Actions */}
-      <View style={styles.actionsContainer}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => navigation.navigate('AddWorkout')}
-          >
-            <Ionicons name="add-circle" size={24} color="#667eea" />
-            <Text style={styles.actionButtonText}>Add Workout</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => navigation.navigate('AddProgress')}
-          >
-            <Ionicons name="add-circle" size={24} color="#4CAF50" />
-            <Text style={styles.actionButtonText}>Log Progress</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Recent Activity */}
-      <View style={styles.activityContainer}>
-        <Text style={styles.sectionTitle}>Recent Activity</Text>
-        
-        {recentWorkouts.length > 0 && (
-          <View style={styles.activitySection}>
-            <Text style={styles.activitySectionTitle}>Recent Workouts</Text>
-            {recentWorkouts.map((workout, index) => (
-              <View key={workout.id} style={styles.activityItem}>
-                <View style={styles.activityIcon}>
-                  <Ionicons name="fitness" size={20} color="#667eea" />
-                </View>
-                <View style={styles.activityContent}>
-                  <Text style={styles.activityTitle}>{workout.type} Workout</Text>
-                  <Text style={styles.activitySubtitle}>
-                    {workout.duration} min • {formatDate(workout.date)}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {recentProgress.length > 0 && (
-          <View style={styles.activitySection}>
-            <Text style={styles.activitySectionTitle}>Recent Progress</Text>
-            {recentProgress.map((progress, index) => (
-              <View key={progress.id} style={styles.activityItem}>
-                <View style={styles.activityIcon}>
-                  <Ionicons name="trending-up" size={20} color="#4CAF50" />
-                </View>
-                <View style={styles.activityContent}>
-                  <Text style={styles.activityTitle}>Progress Update</Text>
-                  <Text style={styles.activitySubtitle}>
-                    {progress.weight}kg • {formatDate(progress.date)}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {recentWorkouts.length === 0 && recentProgress.length === 0 && (
-          <View style={styles.emptyState}>
-            <Ionicons name="fitness-outline" size={48} color="#ccc" />
-            <Text style={styles.emptyStateText}>No recent activity</Text>
-            <Text style={styles.emptyStateSubtext}>Start your fitness journey today!</Text>
-          </View>
-        )}
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 };
 
@@ -251,19 +240,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
-    paddingTop: 50,
-    paddingBottom: 30,
-    paddingHorizontal: 20,
+  scrollView: {
+    flex: 1,
   },
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  content: {
+    padding: 20,
   },
   profileSection: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 20,
   },
   profileImage: {
     width: 60,
@@ -277,96 +263,53 @@ const styles = StyleSheet.create({
   profileInfo: {
     flex: 1,
   },
-  welcomeText: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 14,
-  },
-  nameText: {
-    color: 'white',
+  profileName: {
     fontSize: 20,
     fontWeight: 'bold',
+    color: '#333',
+  },
+  profileEmail: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 2,
+  },
+  membershipStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 5,
+  },
+  statusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 5,
+  },
+  statusText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: 'white',
   },
   logoutButton: {
     padding: 8,
   },
-  membershipCard: {
-    backgroundColor: 'white',
-    margin: 20,
-    borderRadius: 15,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  membershipHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  membershipTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginLeft: 10,
-    color: '#333',
-  },
-  membershipDetails: {
-    gap: 10,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  statusLabel: {
-    fontSize: 14,
-    color: '#666',
-  },
-  statusValue: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
   statsContainer: {
-    marginHorizontal: 20,
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 15,
-  },
-  statsGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     justifyContent: 'space-between',
+    marginBottom: 20,
   },
   statCard: {
     backgroundColor: 'white',
-    width: '48%',
+    width: '30%',
     borderRadius: 15,
-    padding: 20,
+    padding: 15,
     alignItems: 'center',
-    marginBottom: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
-  statNumber: {
+  statValue: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',
@@ -376,53 +319,32 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginTop: 4,
-    textAlign: 'center',
   },
-  actionsContainer: {
-    marginHorizontal: 20,
+  section: {
     marginBottom: 20,
   },
-  actionButtons: {
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-  },
-  actionButton: {
-    backgroundColor: 'white',
-    flex: 1,
-    borderRadius: 15,
-    padding: 20,
     alignItems: 'center',
-    marginHorizontal: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  actionButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
-    marginTop: 8,
-  },
-  activityContainer: {
-    marginHorizontal: 20,
-    marginBottom: 30,
-  },
-  activitySection: {
-    marginBottom: 20,
-  },
-  activitySectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
     marginBottom: 10,
   },
-  activityItem: {
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  seeAllText: {
+    fontSize: 14,
+    color: '#667eea',
+    fontWeight: '500',
+  },
+  workoutCard: {
     backgroundColor: 'white',
     borderRadius: 12,
     padding: 15,
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 10,
     shadowColor: '#000',
@@ -431,41 +353,72 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
-  activityIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f8f9fa',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
-  },
-  activityContent: {
+  workoutInfo: {
     flex: 1,
   },
-  activityTitle: {
-    fontSize: 14,
+  workoutName: {
+    fontSize: 16,
     fontWeight: '500',
     color: '#333',
   },
-  activitySubtitle: {
+  workoutDate: {
     fontSize: 12,
     color: '#666',
     marginTop: 2,
   },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
+  workoutStats: {
+    alignItems: 'flex-end',
   },
-  emptyStateText: {
+  workoutDuration: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#4CAF50',
+  },
+  workoutCalories: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#FF9800',
+  },
+  progressCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 15,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  progressInfo: {
+    flex: 1,
+  },
+  progressType: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+  },
+  progressDate: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+  progressValue: {
+    alignItems: 'flex-end',
+  },
+  progressNumber: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+  },
+  noDataText: {
     fontSize: 16,
     color: '#666',
-    marginTop: 10,
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: '#999',
-    marginTop: 5,
+    textAlign: 'center',
+    paddingVertical: 20,
   },
 });
 
